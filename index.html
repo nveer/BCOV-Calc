@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BCOV VOD Entitlements Calculator – V2</title>
+  <style>
+    :root{
+      --bc-black:#000000; --bc-white:#FFFFFF;
+      --bc-yellow:#EFD900; --bc-orange:#F76531; --bc-purple:#AA6C7E; --bc-blue:#4EA9D1;
+      --bg:var(--bc-black); --card:#0d0d0d; --text:var(--bc-white); --muted:#B3B3B3;
+      --accent:var(--bc-blue); --ring:var(--accent);
+    }
+    body{ margin:0; background:var(--bg); color:var(--text); font-family: Montserrat, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    .wrap{ max-width:1200px; margin:24px auto; padding:0 16px; }
+    .brandbar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .brandbar img{height:28px}
+    .brandname{font-weight:800;letter-spacing:.3px;color:var(--accent)}
+    h1{ font-size:22px; margin:6px 0 16px; }
+    .grid{ display:grid; grid-template-columns: repeat(12,1fr); gap:16px; }
+    .card{ background:var(--card); border:1px solid #1f2431; border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+    .span-6{ grid-column: span 6; } .span-12{ grid-column: span 12; } .span-9{ grid-column: span 9; }
+    .row{ display:flex; align-items:center; gap:10px; margin:10px 0; }
+    label{ width:220px; color:var(--muted); font-size:13px; }
+    input[type="number"], input[type="text"], select{ flex:1; padding:10px 12px; border-radius:10px; border:1px solid #273046; background:#0f1320; color:var(--text); }
+    input:focus, select:focus{ border-color:var(--ring); box-shadow:0 0 0 3px rgba(78,169,209,.25); outline:none; }
+    table{ width:100%; border-collapse:collapse; }
+    th,td{ border-bottom:1px solid #233; padding:8px; font-size:14px; text-align:left; }
+    th{ color:var(--muted); }
+    .kpi{ display:grid; grid-template-columns: repeat(3,1fr); gap:12px; }
+    .kpi > div{ padding:14px; border-radius:14px; background:#0f1320; border:1px dashed #2a3348; }
+    .kpi .lbl{ font-size:12px; color:var(--muted); }
+    .kpi .val{ font-size:18px; font-weight:700; }
+    .badges{ display:flex; gap:8px; flex-wrap:wrap; }
+    .badge{ font-size:12px; background:var(--accent); color:#000; padding:4px 8px; border-radius:999px; }
+    .err{ background:transparent; color:var(--accent); border:1px solid var(--accent); }
+    details.rendition{ margin-top:8px; }
+    details.rendition summary{ display:flex; align-items:center; gap:8px; color:var(--accent); cursor:pointer; border:1px dashed #2a3348; border-radius:10px; padding:8px 12px; }
+    details.rendition[open] summary{ background:#0f1320; }
+    details.rendition summary .chev{ transition: transform .2s ease; }
+    details.rendition[open] summary .chev{ transform: rotate(90deg); }
+    @media (max-width:960px){ .span-6,.span-9,.span-12{ grid-column: span 12; } .kpi{ grid-template-columns:1fr; } }
+    /* Range */
+    input[type="range"]::-webkit-slider-thumb{ -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); border:none; }
+    input[type="range"]::-webkit-slider-runnable-track{ height:4px; background:linear-gradient(var(--accent),var(--accent)) no-repeat; }
+  </style>
+  <style>.btn{background:transparent;color:var(--accent);border:1px solid var(--accent);padding:8px 10px;border-radius:10px;cursor:pointer}.btn:hover{background:var(--accent);color:#000;border-color:var(--accent)}.hint{font-size:12px;color:#B3B3B3}</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brandbar"><img src="img/Brightcove_Logo.png" alt="Brightcove" onerror="this.style.display='none'"/><span class="brandname">Brightcove</span></div>
+    <h1>BCOV VOD Entitlements Calculator – V2</h1>
+
+    <div class="grid">
+      <div class="card span-6">
+        <h3>Storage inputs</h3>
+        <div class="row"><label title="Number of existing videos (not GB).">Back catalog – count (# of videos)</label><input id="back_cat" type="number" min="0" value="0"></div>
+        <div class="row"><label title="New videos uploaded per month.">Monthly new assets</label><input id="m_new_assets" type="number" min="0" value="0"></div>
+        <div class="row"><label title="Average duration per video (minutes).">Average file duration</label><input id="av_duration" type="number" min="0" step="1" value="0"><span>min</span></div>
+        <div class="row"><label title="Average Master file size per video (MB). Set 0 if not storing masters.">Average master file size</label><input id="master_sz_mb" type="number" min="0" step="1" value="0"><span>MB</span></div>
+      </div>
+
+      <div class="card span-6">
+        <h3>VOD Delivery</h3>
+        <div class="row"><label title="Total play starts per month.">Monthly plays (streams)</label><input id="stream_num" type="number" min="0" step="1" value="0"></div>
+        <div class="row"><label title="Average minutes watched per play.">Average watch time</label><input id="av_duration_bw" type="number" min="0" step="1" value="0"><span>min</span></div>
+        <div class="row"><label><input id="CAE" type="checkbox"> CAE @ <span id="show_cae">15</span>%</label></div>
+        <div class="row"><label><input id="origin_offload" type="checkbox"> Origin offload @ <span id="show_origin">11</span>%</label></div>
+        <div class="row"><label>Multi-year multiplier</label><input id="yearly_multiplier_range" type="range" min="0" max="100" step="50" value="0" style="flex:2"><div style="width:120px;text-align:right"><span id="range_output">12 months</span></div></div>
+        <div class="badges"><span id="error" class="badge"></span><span id="bw_danger" class="badge err"></span></div>
+      </div>
+
+      <div class="card span-12">
+        <h3>Rendition Profile</h3>
+        <div class="row"><label>Profile</label>
+          <select id="renditionProfile">
+            <option value="extended_mp4" selected>Multi-platform Extended + MP4</option>
+            <option value="multi_std_mp4_720">Multi-platform Standard + MP4 (up to 720p)</option>
+            <option value="extended_h264_hevc_mp4">Multi-platform Extended H.264 + HEVC + MP4</option>
+            <option value="extended">Multi-platform Extended</option>
+            <option value="hevc_4k_only">4K HEVC Only</option>
+            <option value="multi_std">Multi-platform Standard</option>
+          </select>
+        </div>
+        <details id="renditionsDetails" class="rendition" open>
+          <summary><span class="chev">▸</span> Rendition Breakdown <span id="renditionSummary" style="color:#B3B3B3">· 0 selected · Output 0 kbps · Total 0 kbps</span></summary>
+          <div style="margin-top:10px">
+            <table id="ABR"><thead><tr><th>Size</th><th>Bitrate (kbps)</th><th>Include</th></tr></thead><tbody id="abrBody"></tbody>
+              <tfoot><tr class="table-active"><td>Total:</td><td id="ABRtotal">0</td><td></td></tr><tr class="table-active"><td>Output (avg video + audio):</td><td id="averageBitrate">0</td><td></td></tr></tfoot>
+            </table>
+            <div style="font-size:12px;color:#B3B3B3">Only checked rows count. “Output” = average of selected video (>192 kbps) plus average of selected audio (≤192 kbps).</div>
+          </div>
+        </details>
+      </div>
+
+      <div class="card span-12">
+        <h3>Results</h3>
+        <div class="kpi">
+          <div><div class="lbl" id="transcode_result_label">Transcode:</div><div class="val" id="transcode">0.00 GB</div></div>
+          <div><div class="lbl">Storage – no masters:</div><div class="val" id="totalExMaster">0.00 GB</div></div>
+          <div><div class="lbl">Storage – inc masters:</div><div class="val" id="totalIncMaster">0.00 GB</div></div>
+          <div><div class="lbl">Bandwidth per month:</div><div class="val" id="bandwidth_pm">0.00 GB</div></div>
+          <div><div class="lbl" id="bw_result_label">Bandwidth per year:</div><div class="val" id="bandwidth_py">0.00 GB</div></div>
+          <div class="origin-block"><div class="lbl">Origin offload per month:</div><div class="val" id="origin_pm">0.00 GB</div></div>
+          <div class="origin-block"><div class="lbl" id="offload_result_label">Origin offload per year:</div><div class="val" id="origin_py">0.00 GB</div></div>
+          <div><div class="lbl" id="hr_result_label">Output min per year:</div><div class="val" id="output_hr">0</div></div>
+        </div>
+        <div class="footer" style="font-size:12px;color:#B3B3B3;margin-top:8px">Defaults: CAE base 15% (storage/transcode), CAE bandwidth 25% (egress), Origin offload 11%. Multi-year: 12 / 24 / 36 months.</div>
+      </div>
+    <div class="card span-12">
+        <h3>Share</h3>
+        <div class="row"><button id="printReport" class="btn">Generate PDF Report</button><span class="hint">Creates a branded, read-only PDF with inputs, ladder, results, and labeled charts.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const get = id => document.getElementById(id);
+    const fmt = (n,f=2)=> Number(n||0).toLocaleString(undefined,{minimumFractionDigits:0, maximumFractionDigits:f});
+    const toNum = (el)=>{ const v=(typeof el==='string')?get(el).value:(el?.value??el); const cleaned=String(v||'').replace(/,/g,'').trim(); const n=parseFloat(cleaned); return isFinite(n)?n:0; };
+
+    let CAE_percentage = 15;      // storage/transcode reduction
+    let CAE_bw_percentage = 25;   // bandwidth reduction
+    let origin_percentage = 11;   // origin offload
+
+    const PROFILES = {
+      extended_mp4: { name:'Multi-platform Extended + MP4', renditions:[
+        { size:'480 x 270', bitrate:450, abr:true },{ size:'640 x 360', bitrate:700, abr:true },{ size:'640 x 360', bitrate:900, abr:true },{ size:'960 x 540', bitrate:1200, abr:true },{ size:'960 x 540', bitrate:1700, abr:true },{ size:'1280 x 720', bitrate:2000, abr:true },{ size:'1280 x 720 MP4', bitrate:2000, abr:true },{ size:'1920 x 1080', bitrate:3500, abr:true },{ size:'Audio', bitrate:64, abr:true },{ size:'Audio', bitrate:96, abr:true },{ size:'Audio', bitrate:128, abr:true },{ size:'Audio', bitrate:192, abr:true }
+      ]},
+      multi_std_mp4_720: { name:'Multi-platform Standard + MP4 (up to 720p)', renditions:[
+        { size:'Audio', bitrate:64, abr:false },{ size:'Audio', bitrate:128, abr:false },{ size:'480 x 270', bitrate:450, abr:true },{ size:'640 x 360', bitrate:700, abr:true },{ size:'640 x 360', bitrate:900, abr:true },{ size:'960 x 540', bitrate:1200, abr:true },{ size:'960 x 540', bitrate:1700, abr:true },{ size:'1280 x 720', bitrate:2000, abr:true },{ size:'1280 x 720 MP4', bitrate:2000, abr:true },{ size:'Audio', bitrate:96, abr:true }
+      ]},
+      extended_h264_hevc_mp4: { name:'Multi-platform Extended H.264 + HEVC + MP4', renditions:[
+        { size:'640 x 360 - HEVC', bitrate:550, abr:false },{ size:'640 x 360', bitrate:700, abr:false },{ size:'640 x 360', bitrate:900, abr:true },{ size:'768 x 432 - HEVC', bitrate:550, abr:true },{ size:'960 x 540', bitrate:1000, abr:false },{ size:'1024 x 576 - HEVC', bitrate:1300, abr:false },{ size:'1280 x 720 - HEVC', bitrate:1600, abr:true },{ size:'1280 x 720 - MP4', bitrate:2000, abr:true },{ size:'1280 x 720', bitrate:2000, abr:false },{ size:'1280 x 720', bitrate:2500, abr:true },{ size:'1920 x 1080 - HEVC', bitrate:2850, abr:false },{ size:'1920 x 1080', bitrate:3500, abr:true },{ size:'1920 x 1080', bitrate:3800, abr:true },{ size:'Audio', bitrate:64, abr:false },{ size:'Audio', bitrate:128, abr:true },{ size:'Audio', bitrate:192, abr:true }
+      ]},
+      extended: { name:'Multi-platform Extended', renditions:[
+        { size:'480 x 270', bitrate:450, abr:true },{ size:'640 x 360', bitrate:700, abr:true },{ size:'640 x 360', bitrate:900, abr:true },{ size:'960 x 540', bitrate:1200, abr:true },{ size:'960 x 540', bitrate:1700, abr:true },{ size:'1280 x 720', bitrate:2000, abr:true },{ size:'1920 x 1080', bitrate:3500, abr:true },{ size:'Audio', bitrate:64, abr:true },{ size:'Audio', bitrate:96, abr:true },{ size:'Audio', bitrate:128, abr:true },{ size:'Audio', bitrate:192, abr:true }
+      ]},
+      hevc_4k_only: { name:'4K HEVC Only', renditions:[
+        { size:'768 x 432 HEVC', bitrate:400, abr:true },{ size:'1024 x 576 HEVC', bitrate:600, abr:true },{ size:'1280 x 720 HEVC', bitrate:1100, abr:true },{ size:'1920 x 1080 HEVC', bitrate:2200, abr:true },{ size:'2560 x 1440 HEVC', bitrate:4200, abr:true },{ size:'3840 x 2160 HEVC', bitrate:8000, abr:true },{ size:'Audio', bitrate:192, abr:true },{ size:'Audio', bitrate:168, abr:true }
+      ]},
+      multi_std: { name:'Multi-platform Standard', renditions:[
+        { size:'480 x 270', bitrate:450, abr:true },{ size:'640 x 360', bitrate:700, abr:true },{ size:'640 x 360', bitrate:900, abr:true },{ size:'960 x 540', bitrate:1200, abr:true },{ size:'960 x 540', bitrate:1700, abr:true },{ size:'1280 x 720', bitrate:2000, abr:true },{ size:'Audio', bitrate:64, abr:false },{ size:'Audio', bitrate:96, abr:true },{ size:'Audio', bitrate:128, abr:false }
+      ]}
+    };
+
+    const tbody = get('abrBody');
+
+    function buildProfile(key){
+      const p = PROFILES[key] || PROFILES.extended_mp4;
+      tbody.innerHTML='';
+      p.renditions.forEach((r,idx)=>{
+        const id = key+'_'+idx;
+        const tr = document.createElement('tr');
+        tr.className='renditionRow';
+        tr.dataset.rendition=id;
+        tr.innerHTML = `<td><input id="${id}inputSize" class="simple-input" type="text" value="${r.size}"></td>
+                         <td class="loop low_1 ${r.abr?'ABRloop':''}"><input id="${id}inputBitrate" class="simple-input" type="number" value="${r.bitrate}"></td>
+                         <td><input id="${id}inputAbr" type="checkbox" ${r.abr?'checked':''}></td>`;
+        tbody.appendChild(tr);
+      });
+      calculateTable();
+      calculateTotal();
+    }
+
+    function calculateTable(){
+      let sumVal=0, vx=[], ax=[], included=0;
+      Array.from(tbody.querySelectorAll('.renditionRow')).forEach(tr=>{
+        const id=tr.dataset.rendition; const br=toNum(id+'inputBitrate'); const include=get(id+'inputAbr').checked;
+        if(include){ included++; sumVal+=br; if(br>192) vx.push(br); else if(br>0) ax.push(br); }
+      });
+      const avg=arr=> arr.length? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+      const outputAvg = Math.floor(avg(vx)) + Math.floor(avg(ax));
+      get('ABRtotal').textContent = Math.floor(sumVal);
+      get('averageBitrate').textContent = Math.floor(outputAvg);
+      get('renditionSummary').textContent = `· ${included} selected · Output ${outputAvg} kbps · Total ${Math.floor(sumVal)} kbps`;
+      return { totalKbps: sumVal, outputAvgKbps: outputAvg };
+    }
+
+    function setYearRange(){
+      const v=get('yearly_multiplier_range').value; let months=12;
+      if(v==='0'){ months=12; get('transcode_result_label').textContent='Transcode:'; get('bw_result_label').textContent='Bandwidth per year:'; get('offload_result_label').textContent='Origin offload per year:'; }
+      if(v==='50'){ months=24; get('transcode_result_label').textContent='Transcode - 2 years:'; get('bw_result_label').textContent='Bandwidth - 2 years:'; get('offload_result_label').textContent='Origin offload - 2 years:'; }
+      if(v==='100'){ months=36; get('transcode_result_label').textContent='Transcode - 3 years:'; get('bw_result_label').textContent='Bandwidth - 3 years:'; get('offload_result_label').textContent='Origin offload - 3 years:'; }
+      get('range_output').textContent = months + ' months';
+      return months;
+    }
+
+    const applyPct=(val,pct)=> val*(1-pct/100);
+
+    function calculateTotal(){
+      ['back_cat','m_new_assets','av_duration','master_sz_mb','stream_num','av_duration_bw'].forEach(id=>{ const f=get(id); if(typeof f.value==='string'){ f.value=f.value.replace(/[^0-9.]/g,''); }});
+      const back_cat=toNum('back_cat'), m_new_assets=toNum('m_new_assets'), av_duration=toNum('av_duration'), master_sz_mb=toNum('master_sz_mb'), stream_num=toNum('stream_num'), av_duration_bw=toNum('av_duration_bw');
+      const months=setYearRange();
+      const abr=calculateTable();
+      const gb_per_hr=(abr.totalKbps/8/1000/1000)*3600;
+      const masters_static_GB=(back_cat*master_sz_mb)/1000;
+      const masters_new_GB=(m_new_assets*master_sz_mb)/1000;
+      const backCatMinutes=back_cat*av_duration; const newAssetMinutes=m_new_assets*av_duration;
+      const back_cat_trans_GB=(backCatMinutes/60)*gb_per_hr; const new_asset_trans_GB=(newAssetMinutes/60)*gb_per_hr;
+      let trans_tot=0, cumulative_masters=0, storage_last=back_cat_trans_GB, masters_static=masters_static_GB;
+      for(let i=0;i<months;i++){ masters_static+=masters_new_GB; cumulative_masters+=masters_static; storage_last+=new_asset_trans_GB; trans_tot+=storage_last; }
+      let storage_no_masters_GB=trans_tot; let storage_inc_masters_GB=trans_tot+cumulative_masters;
+      let bandwidth_pm_GB=((stream_num*abr.outputAvgKbps)/8/1000/1000)*(av_duration_bw*60); let bandwidth_py_GB=bandwidth_pm_GB*months;
+      const caeOn=get('CAE').checked && storage_no_masters_GB>0; if(caeOn){ storage_no_masters_GB=applyPct(storage_no_masters_GB,CAE_percentage); storage_inc_masters_GB=storage_no_masters_GB+cumulative_masters; bandwidth_pm_GB=applyPct(bandwidth_pm_GB,CAE_bw_percentage); bandwidth_py_GB=applyPct(bandwidth_py_GB,CAE_bw_percentage);} get('CAE').disabled=(storage_no_masters_GB<=0);
+      const originOn=get('origin_offload').checked && bandwidth_pm_GB>0; get('origin_offload').disabled=(bandwidth_pm_GB<=0);
+      const origin_pm_GB=originOn?(bandwidth_pm_GB*origin_percentage/100):0; const origin_py_GB=originOn?(bandwidth_py_GB*origin_percentage/100):0;
+      if(av_duration_bw>av_duration){ get('bw_danger').textContent='Average watch time cannot exceed average duration.'; } else { get('bw_danger').textContent=''; }
+      get('transcode').textContent = fmt(storage_last,2)+' GB';
+      get('totalExMaster').textContent = fmt(storage_no_masters_GB,2)+' GB';
+      get('totalIncMaster').textContent = fmt(storage_inc_masters_GB,2)+' GB';
+      get('bandwidth_pm').textContent = fmt(bandwidth_pm_GB,2)+' GB';
+      get('bandwidth_py').textContent = fmt(bandwidth_py_GB,2)+' GB';
+      document.querySelectorAll('.origin-block').forEach(el=> el.style.display = originOn ? '' : 'none');
+      get('origin_pm').textContent = fmt(origin_pm_GB,2)+' GB';
+      get('origin_py').textContent = fmt(origin_py_GB,2)+' GB';
+
+      // Output minutes per year (dimension + codec aware)
+      let line_total=0, backCatHrs=0;
+      const rows=Array.from(tbody.querySelectorAll('.renditionRow'));
+      const parseDims=s=>{ const t=String(s).toLowerCase(); const parts=t.split('x').map(p=>parseInt(p.replace(/[^0-9]/g,''),10)).filter(Boolean); if(parts.length>=2){ return {w:parts[0], h:parts[1]}; } return null; };
+      const baseFromLabel=s=>{ const t=String(s).toLowerCase(); if(t.includes('audio')||t.includes('transmux')) return 0.25; const d=parseDims(t); if(d){ const {w,h}=d; if(w<720||h<720) return 1; if((w>1080&&w<=1920)||(h>1080&&h<=1920)) return 2; if((w>1920&&w<=3840)||(h>1920&&h<=3840)) return 4; if(w>3840||h>3840) return 16; return 1;} if(t.includes('8k')) return 16; if(t.includes('4k')||t.includes('uhd')) return 4; if(t.includes('hd')) return 2; return 1; };
+      const multFromLabel=s=>{ const t=String(s).toLowerCase(); if(t.includes('av1')) return 25; if(t.includes('dolby')) return 2.5; if(t.includes('hevc')||t.includes('h265')||t.includes('hdr')) return 2; if(t.includes('h264')) return 1; return 1; };
+      const tot_assets_year = back_cat + (m_new_assets*12);
+      rows.forEach(r=>{ const id=r.dataset.rendition; if(!get(id+'inputAbr').checked) return; const sizeStr=get(id+'inputSize').value; const base=baseFromLabel(sizeStr), mult=multFromLabel(sizeStr); line_total += av_duration*base*mult*tot_assets_year; backCatHrs += av_duration*base*mult*back_cat; });
+      let outputMin=0; const rv=get('yearly_multiplier_range').value; if(rv==='0'){ outputMin=line_total; get('hr_result_label').textContent='Output min per year:'; } if(rv==='50'){ outputMin=line_total*2 - backCatHrs; get('hr_result_label').textContent='Output min - 2 years:'; } if(rv==='100'){ outputMin=line_total*3 - backCatHrs*2; get('hr_result_label').textContent='Output min - 3 years:'; } if(get('CAE').checked) outputMin=applyPct(outputMin, CAE_percentage);
+      get('output_hr').textContent = fmt(outputMin,0);
+    }
+
+    ['back_cat','m_new_assets','av_duration','master_sz_mb','stream_num','av_duration_bw','yearly_multiplier_range','CAE','origin_offload'].forEach(id=>{ get(id).addEventListener('input',calculateTotal); get(id).addEventListener('change',calculateTotal); });
+    tbody.addEventListener('input',calculateTotal); tbody.addEventListener('change',calculateTotal);
+    get('renditionProfile').addEventListener('change', e=> buildProfile(e.target.value));
+
+    function applyParamsFromURL(){
+      const p=new URLSearchParams(location.search); if(!Array.from(p.keys()).length) return; const abr=p.get('abr'); if(abr && PROFILES[abr]){ get('renditionProfile').value=abr; buildProfile(abr);} ['back_cat','m_new_assets','av_duration','master_sz_mb','stream_num','av_duration_bw'].forEach(id=>{ if(p.has(id)) get(id).value=p.get(id); }); if(p.has('CAE')) get('CAE').checked=(p.get('CAE')==='1'||p.get('CAE')==='true'); if(p.has('origin_offload')) get('origin_offload').checked=(p.get('origin_offload')==='1'||p.get('origin_offload')==='true'); const cp=parseFloat(p.get('cae_percentage')); if(!Number.isNaN(cp)) CAE_percentage=cp; const cbw=parseFloat(p.get('cae_bw_percentage')); if(!Number.isNaN(cbw)) CAE_bw_percentage=cbw; const op=parseFloat(p.get('origin_percentage')); if(!Number.isNaN(op)) origin_percentage=op; get('show_cae').textContent=CAE_percentage; get('show_origin').textContent=origin_percentage; if(p.has('range')) get('yearly_multiplier_range').value=p.get('range'); setYearRange(); calculateTotal(); }
+
+    buildProfile(get('renditionProfile').value);
+    applyParamsFromURL();
+
+    // --- Share: Generate PDF Report (print) ---
+    (function(){
+      const btn = document.getElementById('printReport');
+      if(!btn) return;
+      const LETTERHEAD_URL = 'LetterHead - BC.png';
+
+      btn.addEventListener('click', ()=>{
+        try{ calculateTotal(); }catch(e){}
+        const data = computeCore();
+        openReportWindow(data);
+      });
+
+      function computeCore(){
+        const months = (function(){ const v = get('yearly_multiplier_range').value; return v==='50'?24 : (v==='100'?36:12); })();
+        const back_cat = toNum('back_cat'), m_new_assets = toNum('m_new_assets'), av_duration = toNum('av_duration'), master_sz_mb = toNum('master_sz_mb'), stream_num = toNum('stream_num'), av_duration_bw = toNum('av_duration_bw');
+        // ABR snapshot
+        let totalKbps=0, vx=[], ax=[];
+        Array.from(tbody.querySelectorAll('.renditionRow')).forEach(tr=>{
+          const id=tr.dataset.rendition; const br=toNum(id+'inputBitrate'); const on=document.getElementById(id+'inputAbr').checked;
+          if(on){ totalKbps+=br; if(br>192) vx.push(br); else if(br>0) ax.push(br); }
+        });
+        const avg=a=> a.length? a.reduce((x,y)=>x+y,0)/a.length : 0;
+        const outputAvgKbps = Math.floor(avg(vx)) + Math.floor(avg(ax));
+        const caeOn = document.getElementById('CAE').checked;
+
+        // Storage math
+        const gb_per_hr = (totalKbps/8/1000/1000)*3600;
+        const masters_static_GB0 = (back_cat*master_sz_mb)/1000;
+        const masters_new_GB = (m_new_assets*master_sz_mb)/1000;
+        const backCatMinutes = back_cat*av_duration;
+        const newAssetMinutes = m_new_assets*av_duration;
+        const back_cat_trans_GB = (backCatMinutes/60)*gb_per_hr;
+        const new_asset_trans_GB = (newAssetMinutes/60)*gb_per_hr;
+        let storage_last = back_cat_trans_GB, trans_tot=0, cumulative_masters=0, masters_static=masters_static_GB0;
+        for(let i=0;i<months;i++){ masters_static+=masters_new_GB; cumulative_masters+=masters_static; storage_last+=new_asset_trans_GB; trans_tot+=storage_last; }
+        if(caeOn){ trans_tot = trans_tot * (1-CAE_percentage/100); }
+        const storage_no_masters_GB = trans_tot;
+        const storage_inc_masters_GB = storage_no_masters_GB + cumulative_masters;
+
+        // Bandwidth
+        let bandwidth_pm_GB = ((stream_num*outputAvgKbps)/8/1000/1000)*(av_duration_bw*60);
+        let bandwidth_py_GB = bandwidth_pm_GB * months;
+        if(caeOn){ bandwidth_pm_GB *= (1-CAE_bw_percentage/100); bandwidth_py_GB *= (1-CAE_bw_percentage/100); }
+
+        // Renditions snapshot
+        const renditions = Array.from(tbody.querySelectorAll('.renditionRow')).map(tr=>{ const id=tr.dataset.rendition; return { size: document.getElementById(id+'inputSize').value, bitrate: toNum(id+'inputBitrate'), abr: document.getElementById(id+'inputAbr').checked }; });
+
+        return { months, caeOn,
+          inputs:{ back_cat, m_new_assets, av_duration, master_sz_mb, stream_num, av_duration_bw, profile: document.getElementById('renditionProfile').value },
+          abr:{ totalKbps: Math.floor(totalKbps), outputAvgKbps: Math.floor(outputAvgKbps) },
+          storage:{ transcodeTotalGB: storage_no_masters_GB, mastersTotalGB: cumulative_masters, withMastersGB: storage_inc_masters_GB, lastMonthGB: storage_last },
+          bandwidth:{ perMonthGB: bandwidth_pm_GB, perYearGB: bandwidth_py_GB },
+          renditions
+        };
+      }
+
+      function svgBarChart(title, items, unit){
+        const w=520,h=200,padL=40,padR=20,padT=30,padB=40; const innerW=w-padL-padR, innerH=h-padT-padB; const max=Math.max(...items.map(i=>i.value),1); const step=innerW/items.length; let bars='';
+        items.forEach((it,i)=>{ const x=padL+i*step+step*0.15; const barW=step*0.7; const bh=Math.round((it.value/max)*(innerH-10)); const y=padT+(innerH-bh); bars += `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="6" fill="currentColor"></rect>`+`<text x="${x+barW/2}" y="${y-6}" text-anchor="middle" font-size="11" fill="#888">${Number(it.value||0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} ${unit}</text>`+`<text x="${x+barW/2}" y="${h-12}" text-anchor="middle" font-size="11" fill="#888">${it.label}</text>`; });
+        return `<div class="chart"><h4>${title}</h4><svg viewBox="0 0 ${w} ${h}" width="100%" style="color:#4EA9D1">${bars}</svg></div>`;
+      }
+
+      function openReportWindow(data){
+        const win = window.open('', '_blank');
+        const now = new Date().toLocaleString();
+        const accent = '#4EA9D1';
+        const address = '281 Summer Street, Boston, MA 02210 | Tel 617 674 6500 | Fax 617 261 4830 | brightcove.com';
+        const logo = 'img/Brightcove_Logo.png';
+        const includedR = data.renditions.filter(r=>r.abr);
+        const charts = [
+          svgBarChart('Storage Breakdown (GB)', [ {label:'Transcode total', value:data.storage.transcodeTotalGB}, {label:'Masters total', value:data.storage.mastersTotalGB} ], 'GB'),
+          svgBarChart('Bandwidth (GB)', [ {label:'Per month', value:data.bandwidth.perMonthGB}, {label:`Per ${data.months} mo`, value:data.bandwidth.perYearGB} ], 'GB')
+        ].join('');
+
+        win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Brightcove Usage Estimate</title>
+          
+          <style>
+            :root{ --accent:${accent}; }
+            *{ box-sizing:border-box; } body{ font-family: Montserrat, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#111; margin:0; }
+            .page{ padding:32px 40px; }
+            .letterhead{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid var(--accent); padding-bottom:10px; margin-bottom:18px; }
+            .letterhead .addr{ font-size:12px; color:#555; }
+            .title{ font-size:22px; font-weight:800; margin:10px 0 6px; }
+            .meta{ font-size:12px; color:#555; margin-bottom:14px; }
+            h3{ margin:18px 0 8px; }
+            table{ width:100%; border-collapse:collapse; font-size:12px; }
+            th,td{ border-bottom:1px solid #e6e6e6; padding:8px; text-align:left; }
+            th{ color:#555; font-weight:600; }
+            .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+            .chart h4{ margin:14px 0 8px; }
+            .chart{ max-width:520px; }
+            .bg-letterhead{ position:fixed; inset:0; width:100%; height:100%; object-fit:contain; object-position: bottom center; z-index:-1; pointer-events:none; }
+            @media print{ .page{ padding:12mm 14mm; } .no-print{ display:none !important; } }
+          </style>
+        </head><body>
+          <div class="page">
+            <img class="bg-letterhead" src="${LETTERHEAD_URL}" alt="">
+            <div class="letterhead">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <img src="${logo}" alt="Brightcove" style="height:28px;" onerror="this.style.display='none'">
+                <strong style="color:var(--accent)">Brightcove</strong>
+              </div>
+              <div class="addr">${address}</div>
+            </div>
+
+            <div class="title">Video Usage Estimate</div>
+            <div class="meta">Generated: ${now} · Profile: ${data.inputs.profile} · Months: ${data.months}${data.caeOn?' · CAE applied':''}</div>
+
+            <div class="grid">
+              <div>
+                <h3>Inputs</h3>
+                <table>
+                  <tbody>
+                    <tr><th>Back catalog (videos)</th><td>${data.inputs.back_cat}</td></tr>
+                    <tr><th>Monthly new assets</th><td>${data.inputs.m_new_assets}</td></tr>
+                    <tr><th>Avg file duration (min)</th><td>${data.inputs.av_duration}</td></tr>
+                    <tr><th>Avg master size (MB)</th><td>${data.inputs.master_sz_mb}</td></tr>
+                    <tr><th>Monthly plays</th><td>${data.inputs.stream_num}</td></tr>
+                    <tr><th>Avg watch time (min)</th><td>${data.inputs.av_duration_bw}</td></tr>
+                    <tr><th>ABR Output (avg kbps)</th><td>${data.abr.outputAvgKbps}</td></tr>
+                    <tr><th>ABR Total (kbps)</th><td>${data.abr.totalKbps}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <h3>Results</h3>
+                <table>
+                  <tbody>
+                    <tr><th>Transcode (last month)</th><td>${Number(data.storage.lastMonthGB||0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} GB</td></tr>
+                    <tr><th>Storage – no masters</th><td>${Number(data.storage.transcodeTotalGB||0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} GB</td></tr>
+                    <tr><th>Storage – inc masters</th><td>${Number(data.storage.withMastersGB||0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} GB</td></tr>
+                    <tr><th>Bandwidth per month</th><td>${Number(data.bandwidth.perMonthGB||0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} GB</td></tr>
+                    <tr><th>Bandwidth (${data.months} months)</th><td>${Number(data.bandwidth.perYearGB||0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2})} GB</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <h3 style="margin-top:16px">Rendition Breakdown (selected)</h3>
+            <table>
+              <thead><tr><th>Size</th><th>Bitrate (kbps)</th></tr></thead>
+              <tbody>
+                ${includedR.map(r=>`<tr><td>${r.size}</td><td>${r.bitrate}</td></tr>`).join('')}
+              </tbody>
+            </table>
+
+            <h3 style="margin-top:16px">Visualizations</h3>
+            ${charts}
+
+            <div class="meta" style="margin-top:24px; border-top:1px solid #eee; padding-top:8px;">©2024 Brightcove Inc. All Rights Reserved.</div>
+
+            <div class="no-print" style="margin-top:10px;">
+              <button onclick="window.print()" style="padding:8px 12px; border:1px solid var(--accent); color:var(--accent); background:#fff; border-radius:8px; cursor:pointer;">Print / Save as PDF</button>
+            </div>
+          </div>
+          
+        </body></html>`);
+        win.document.close();
+      }
+    })();
+</script>
+</body>
+</html>
