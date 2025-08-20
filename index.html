@@ -45,6 +45,13 @@
     input[type="range"]::-webkit-slider-runnable-track{ height:4px; background:linear-gradient(var(--accent),var(--accent)) no-repeat; }
   </style>
   <style>.btn{background:transparent;color:var(--accent);border:1px solid var(--accent);padding:8px 10px;border-radius:10px;cursor:pointer}.btn:hover{background:var(--accent);color:#000;border-color:var(--accent)}.hint{font-size:12px;color:#B3B3B3}</style>
+  <style>
+    /* Info tooltip badges */
+    .info{ display:inline-flex; align-items:center; justify-content:center; margin-left:6px; width:16px; height:16px; border-radius:50%; border:1px solid var(--accent); color:var(--accent); font-size:11px; line-height:1; cursor:help; position:relative; top:-1px; }
+    .info::after{ content: attr(data-tip); position:absolute; left:50%; transform: translateX(-50%); bottom:125%; background:#111; color:#fff; padding:8px 10px; border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.35); width:max-content; max-width:260px; font-size:12px; opacity:0; pointer-events:none; transition:opacity .15s ease; }
+    .info::before{ content:''; position:absolute; bottom:calc(125% - 6px); left:50%; transform: translateX(-50%); width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:6px solid #111; opacity:0; transition:opacity .15s ease; }
+    .info:hover::after, .info:hover::before{ opacity:1; z-index:10; }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -54,32 +61,32 @@
     <div class="grid">
       <div class="card span-6">
         <h3>Storage inputs</h3>
-        <div class="row"><label title="Number of existing videos (not GB).">Back catalog – count (# of videos)</label><input id="back_cat" type="number" min="0" value="0"></div>
-        <div class="row"><label title="New videos uploaded per month.">Monthly new assets</label><input id="m_new_assets" type="number" min="0" value="0"></div>
-        <div class="row"><label title="Average duration per video (minutes).">Average file duration</label><input id="av_duration" type="number" min="0" step="1" value="0"><span>min</span></div>
-        <div class="row"><label title="Average Master file size per video (MB). Set 0 if not storing masters.">Average master file size</label><input id="master_sz_mb" type="number" min="0" step="1" value="0"><span>MB</span></div>
+        <div class="row"><label>Back catalog – count (# of videos) <span class="info" data-tip="Existing videos being migrated to Brightcove">ⓘ</span></label><input id="back_cat" type="number" min="0" value="0"></div>
+        <div class="row"><label>Monthly new assets <span class="info" data-tip="New videos uploaded per month.">ⓘ</span></label><input id="m_new_assets" type="number" min="0" value="0"></div>
+        <div class="row"><label>Average file duration <span class="info" data-tip="Average duration per video (minutes).">ⓘ</span></label><input id="av_duration" type="number" min="0" step="1" value="0"><span>min</span></div>
+        <div class="row"><label>Average master file size <span class="info" data-tip="A video master is the original source file you ingested. Average size per video (MB). Set 0 if not storing masters.">ⓘ</span></label><input id="master_sz_mb" type="number" min="0" step="1" value="0"><span>MB</span></div>
       </div>
 
       <div class="card span-6">
         <h3>VOD Delivery</h3>
-        <div class="row"><label title="Total play starts per month.">Monthly plays (streams)</label><input id="stream_num" type="number" min="0" step="1" value="0"></div>
-        <div class="row"><label title="Average minutes watched per play.">Average watch time</label><input id="av_duration_bw" type="number" min="0" step="1" value="0"><span>min</span></div>
-        <div class="row"><label><input id="CAE" type="checkbox"> CAE @ <span id="show_cae">15</span>%</label></div>
-        <div class="row"><label><input id="origin_offload" type="checkbox"> Origin offload @ <span id="show_origin">11</span>%</label></div>
-        <div class="row"><label>Multi-year multiplier</label><input id="yearly_multiplier_range" type="range" min="0" max="100" step="50" value="0" style="flex:2"><div style="width:120px;text-align:right"><span id="range_output">12 months</span></div></div>
+        <div class="row"><label>Monthly views (streams) <span class="info" data-tip="Total views per month.">ⓘ</span></label><input id="stream_num" type="number" min="0" step="1" value="0"></div>
+        <div class="row"><label>Average watch time <span class="info" data-tip="Average minutes watched per play.">ⓘ</span></label><input id="av_duration_bw" type="number" min="0" step="1" value="0"><span>min</span></div>
+        <div class="row"><label><input id="CAE" type="checkbox"> CAE @ <span id="show_cae">15</span>% <span class="info" data-tip="Context Aware Encoding: applies 15% reduction to storage/transcode and 25% to egress in this model.">ⓘ</span></label></div>
+        <div class="row"><label><input id="origin_offload" type="checkbox"> Origin offload @ <span id="show_origin">11</span>% <span class="info" data-tip="Estimated traffic served from CDN cache instead of origin; shows offload volume if enabled.">ⓘ</span></label></div>
+        <div class="row"><label>Multi‑year multiplier <span class="info" data-tip="Sets projection window for totals: 12, 24, or 36 months.">ⓘ</span></label><input id="yearly_multiplier_range" type="range" min="0" max="100" step="50" value="0" style="flex:2"><div style="width:120px;text-align:right"><span id="range_output">12 months</span></div></div>
         <div class="badges"><span id="error" class="badge"></span><span id="bw_danger" class="badge err"></span></div>
       </div>
 
       <div class="card span-12">
         <h3>Rendition Profile</h3>
-        <div class="row"><label>Profile</label>
+        <div class="row"><label>Profile <span class="info" data-tip="Select a pre-populated ABR ladder. Check rows below to include them in calculations.">ⓘ</span></label>
           <select id="renditionProfile">
-            <option value="extended_mp4" selected>Multi-platform Extended + MP4</option>
-            <option value="multi_std_mp4_720">Multi-platform Standard + MP4 (up to 720p)</option>
-            <option value="extended_h264_hevc_mp4">Multi-platform Extended H.264 + HEVC + MP4</option>
-            <option value="extended">Multi-platform Extended</option>
+            <option value="extended_mp4" selected>Multi‑platform Extended + MP4</option>
+            <option value="multi_std_mp4_720">Multi‑platform Standard + MP4 (up to 720p)</option>
+            <option value="extended_h264_hevc_mp4">Multi‑platform Extended H.264 + HEVC + MP4</option>
+            <option value="extended">Multi‑platform Extended</option>
             <option value="hevc_4k_only">4K HEVC Only</option>
-            <option value="multi_std">Multi-platform Standard</option>
+            <option value="multi_std">Multi‑platform Standard</option>
           </select>
         </div>
         <details id="renditionsDetails" class="rendition" open>
@@ -105,11 +112,11 @@
           <div class="origin-block"><div class="lbl" id="offload_result_label">Origin offload per year:</div><div class="val" id="origin_py">0.00 GB</div></div>
           <div><div class="lbl" id="hr_result_label">Output min per year:</div><div class="val" id="output_hr">0</div></div>
         </div>
-        <div class="footer" style="font-size:12px;color:#B3B3B3;margin-top:8px">Defaults: CAE base 15% (storage/transcode), CAE bandwidth 25% (egress), Origin offload 11%. Multi-year: 12 / 24 / 36 months.</div>
+        <div class="footer" style="font-size:12px;color:#B3B3B3;margin-top:8px">Defaults: CAE base 15% (storage/transcode), CAE bandwidth 25% (egress), Origin offload 11%. Multi‑year: 12 / 24 / 36 months.</div>
       </div>
     <div class="card span-12">
         <h3>Share</h3>
-        <div class="row"><button id="printReport" class="btn">Generate PDF Report</button><span class="hint">Creates a branded, read-only PDF with inputs, ladder, results, and labeled charts.</span></div>
+        <div class="row"><button id="printReport" class="btn">Generate PDF Report</button><span class="hint">Creates a branded, read‑only PDF with inputs, ladder, results, and labeled charts.</span></div>
       </div>
     </div>
   </div>
